@@ -1,6 +1,6 @@
 # About
 
-A directory that contains the code to parse and analyze NHL PBP data using `R`.  It is far from perfect, but hopefully the code is helpful to those who are trying to piece together their own similar solutions.  There are many things that could be refactored, but I tend to like prefer raw code to speed that is a few steps from being DRY but easier to read and outlines the attack plan. 
+A directory that contains the code to parse and analyze NHL PBP data using `R`.  It is far from perfect, but hopefully the code is helpful to those who are trying to piece together their own solutions.  There are many things that could be refactored, but I tend to prefer raw code to speed, and is a few steps from being DRY.
 
 ## How it works
 
