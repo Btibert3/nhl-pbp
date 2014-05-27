@@ -41,13 +41,17 @@ pbp_cols = readRDS("R/colnames.rds")
 ########### find the games that are not in the parsed table before running 
 ########### code below
 
-## create the cursor of the games we will parse -- do a current game
-## code might work only for 2012/2013 season and current
+## some helper sql while developing
+# dbGetQuery(ch, "CREATE TABLE plays_old LIKE plays;")
+# dbGetQuery(ch, "INSERT plays_old SELECT * FROM plays;")
+# dbGetQuery(ch, "TRUNCATE TABLE plays;")
+
+## create the cursor of the games we will parse
 ## seasons parsed 20132014, 20122013, 20112012, 20102011
 query = mongo.bson.buffer.create()
 mongo.bson.buffer.append(query, "season", "20132014")
 query = mongo.bson.from.buffer(query)
-#mongo.count(mongo, DBNS, query)
+mongo.count(mongo, DBNS, query)
 cursor = mongo.find(mongo, ns = DBNS, query = query)
 
 
@@ -101,23 +105,187 @@ while (mongo.cursor.next(cursor))
   # write the data to MySQL
   dbWriteTable(ch, "plays", to_db, append=T)
 } #endwhile
+
+query = mongo.bson.buffer.create()
+mongo.bson.buffer.append(query, "season", "20122013")
+query = mongo.bson.from.buffer(query)
+mongo.count(mongo, DBNS, query)
+cursor = mongo.find(mongo, ns = DBNS, query = query)
+
+
+## iterate over the cursor and assemble the data
+while (mongo.cursor.next(cursor))
+{
+  # iterate and grab the next record
+  tmp = mongo.bson.to.list(mongo.cursor.value(cursor))
+  
+  # if data is not in tmp, go to the next record
+  if (! "data" %in% names(tmp)) {
+    cat("game data not found in : ", tmp$gameid)
+    next
+  }
+  cat("starting the parse and save of game: ", tmp$gameid, "\n")
+  
+  # use the helper function to parse the data
+  plays = tryCatch(parsePBP(tmp), error = function(e) e)
+  if (inherits(plays, "error")) {
+    cat("error with parsing the plays.  Moving on\n")
+    next
+  }
+  
+  # put on the shot location (the goal location is at 0)
+  plays = tryCatch(shotLOC(plays), error = function(e) e)
+  if (inherits(plays, "error")) {
+    cat("error with parsing the shot locations.  Moving on\n")
+    next
+  }
+  
+  # calculate the angle relative to the goal -- calc is +/- for the wing
+  plays = transform(plays, angle = calcAngle(xcoord, ycoord, gx))
+  
+  ## convert the shots to same half of ice and standardize the angle
+  plays = transform(plays,
+                    xcoord_all = ifelse(gx == -89, -1*xcoord, xcoord),
+                    ycoord_all = ifelse(gx == -89, -1*ycoord, ycoord), 
+                    angle_all = ifelse(angle < 0 , -1* angle, angle),
+                    wing = ifelse(angle < 0 , "R", "L"),
+                    styp2 = stype)
+  
+  # time expired etc
+  plays = transform(plays, mins_expired = period * (minute(ms(time))+1))
+  
+  # keep the columns we want -- use our columns and only keep those that are in it
+  # some columns may not be in our list, as they were removed by the NHL
+  COLS = which(names(plays) %in% pbp_cols)
+  to_db = plays[, COLS]
+  
+  # write the data to MySQL
+  dbWriteTable(ch, "plays", to_db, append=T)
+} #endwhile
+
+
+
+
+
+query = mongo.bson.buffer.create()
+mongo.bson.buffer.append(query, "season", "20112012")
+query = mongo.bson.from.buffer(query)
+mongo.count(mongo, DBNS, query)
+cursor = mongo.find(mongo, ns = DBNS, query = query)
+
+
+## iterate over the cursor and assemble the data
+while (mongo.cursor.next(cursor))
+{
+  # iterate and grab the next record
+  tmp = mongo.bson.to.list(mongo.cursor.value(cursor))
+  
+  # if data is not in tmp, go to the next record
+  if (! "data" %in% names(tmp)) {
+    cat("game data not found in : ", tmp$gameid)
+    next
+  }
+  cat("starting the parse and save of game: ", tmp$gameid, "\n")
+  
+  # use the helper function to parse the data
+  plays = tryCatch(parsePBP(tmp), error = function(e) e)
+  if (inherits(plays, "error")) {
+    cat("error with parsing the plays.  Moving on\n")
+    next
+  }
+  
+  # put on the shot location (the goal location is at 0)
+  plays = tryCatch(shotLOC(plays), error = function(e) e)
+  if (inherits(plays, "error")) {
+    cat("error with parsing the shot locations.  Moving on\n")
+    next
+  }
+  
+  # calculate the angle relative to the goal -- calc is +/- for the wing
+  plays = transform(plays, angle = calcAngle(xcoord, ycoord, gx))
+  
+  ## convert the shots to same half of ice and standardize the angle
+  plays = transform(plays,
+                    xcoord_all = ifelse(gx == -89, -1*xcoord, xcoord),
+                    ycoord_all = ifelse(gx == -89, -1*ycoord, ycoord), 
+                    angle_all = ifelse(angle < 0 , -1* angle, angle),
+                    wing = ifelse(angle < 0 , "R", "L"),
+                    styp2 = stype)
+  
+  # time expired etc
+  plays = transform(plays, mins_expired = period * (minute(ms(time))+1))
+  
+  # keep the columns we want -- use our columns and only keep those that are in it
+  # some columns may not be in our list, as they were removed by the NHL
+  COLS = which(names(plays) %in% pbp_cols)
+  to_db = plays[, COLS]
+  
+  # write the data to MySQL
+  dbWriteTable(ch, "plays", to_db, append=T)
+} #endwhile
+
+
+
+
+
+query = mongo.bson.buffer.create()
+mongo.bson.buffer.append(query, "season", "20102011")
+query = mongo.bson.from.buffer(query)
+mongo.count(mongo, DBNS, query)
+cursor = mongo.find(mongo, ns = DBNS, query = query)
+
+
+## iterate over the cursor and assemble the data
+while (mongo.cursor.next(cursor))
+{
+  # iterate and grab the next record
+  tmp = mongo.bson.to.list(mongo.cursor.value(cursor))
+  
+  # if data is not in tmp, go to the next record
+  if (! "data" %in% names(tmp)) {
+    cat("game data not found in : ", tmp$gameid)
+    next
+  }
+  cat("starting the parse and save of game: ", tmp$gameid, "\n")
+  
+  # use the helper function to parse the data
+  plays = tryCatch(parsePBP(tmp), error = function(e) e)
+  if (inherits(plays, "error")) {
+    cat("error with parsing the plays.  Moving on\n")
+    next
+  }
+  
+  # put on the shot location (the goal location is at 0)
+  plays = tryCatch(shotLOC(plays), error = function(e) e)
+  if (inherits(plays, "error")) {
+    cat("error with parsing the shot locations.  Moving on\n")
+    next
+  }
+  
+  # calculate the angle relative to the goal -- calc is +/- for the wing
+  plays = transform(plays, angle = calcAngle(xcoord, ycoord, gx))
+  
+  ## convert the shots to same half of ice and standardize the angle
+  plays = transform(plays,
+                    xcoord_all = ifelse(gx == -89, -1*xcoord, xcoord),
+                    ycoord_all = ifelse(gx == -89, -1*ycoord, ycoord), 
+                    angle_all = ifelse(angle < 0 , -1* angle, angle),
+                    wing = ifelse(angle < 0 , "R", "L"),
+                    styp2 = stype)
+  
+  # time expired etc
+  plays = transform(plays, mins_expired = period * (minute(ms(time))+1))
+  
+  # keep the columns we want -- use our columns and only keep those that are in it
+  # some columns may not be in our list, as they were removed by the NHL
+  COLS = which(names(plays) %in% pbp_cols)
+  to_db = plays[, COLS]
+  
+  # write the data to MySQL
+  dbWriteTable(ch, "plays", to_db, append=T)
+} #endwhile
+
 end = Sys.time()
-
-
-
-## help
-### dbGetQuery = results results and closes, data.frame
-### dbSendQuery = creates recordset to be iterated over, or =-1 for all
-
-
-
-
-# shots = subset(plays, 
-#                subset = shotind==1 & nchar(g_goalie)>0,
-#                select = c('gameid', 'seasonid', 'awayteamnick', 'hometeamnick',
-#                           'eventid','period', 'homeind', 'stype', 'p1name',
-#                           'strength','time', 'desc', 'xcoord', 
-#                           'ycoord','gx', 'gdist', 'angle', 'goalind'))
 
 
 

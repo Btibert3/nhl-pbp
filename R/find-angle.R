@@ -4,8 +4,8 @@ calcAngle = function(ex, ey, gx) {
   ## uses site above, but adjusts slightly to make calc easier 
   ex = ifelse(gx==89, ex, -ex)
   ey = ifelse(gx==89, ey, -ey)
-  deltaY = abs(ey) - 0  ## abs(ey) keeps lw/rw shots/events at the same angle
-  #deltaY = ey - 0  
+  #deltaY = abs(ey) - 0  ## abs(ey) keeps lw/rw shots/events at the same angle
+  deltaY = ey - 0  ## this option allows us to have +/- values, to indicate L/R wings
   deltaX = 89 - ex
   #angleInDegrees = atan(deltaY / deltaX) * 180 / pi
   angleInDegrees = atan2(deltaY, deltaX) * 180 / pi

@@ -2,41 +2,37 @@
 ## Calculate shot probability
 ###############################################################################
 
-## set the directory
-setwd("~/Dropbox/Projects/nhl-playoffs-pbp")
+## options
+options(stringsAsFactors=F)
 
 ## load the libraries
-library(rjson)
-library(RCurl)
+library(RMySQL)
 library(plyr)
 require(jpeg)
-library(rpart)
-library(e1071)
 library(ggplot2)
-library(nnet)
+library(sqldf)
 
-## read in the full PBP data
-pbp = readRDS("data/playoff1213-pbp.rds")
 
-## stanley cup games
-# sc = subset(pbp, hometeamnick %in% c('Bruins', 'Blackhawks') 
-#             & awayteamnick %in% c('Bruins','Blackhawks'))
+## connect to MySQL
+drv = dbDriver("MySQL")
+ch = dbConnect(drv, user="root", password="password", db="nhlpbp")
+
+## not smart, but do a SELECT * from all shots from current season
+## because this will drive my model, leaves MAJOR room for improvement to 
+## use a wider range of data, isolate regular season versus playoffs, etc.
+pbp = dbGetQuery(ch, "SELECT * FROM plays WHERE shotind = 1 AND seasonid = '20132014' ")
 
 ## extract the shots removing empty net goals
-shots = subset(pbp, 
-               subset = sind==1 & nchar(g_goalie)>0,
-               select = c('gameid', 'seasonid', 'awayteamnick', 'hometeamnick',
-                          'eventid','period', 'homeind', 'stype', 'p1name',
-                          'strength','time', 'altVideo', 'desc', 'xcoord', 
-                          'ycoord','gx', 'gdist', 'angle', 'gind'))
+shots = subset(pbp, nchar(p2name)>0)
 
-## standardize the shots
-shots = transform(shots,
-                  xcoord_all = ifelse(gx == -89, -1*xcoord, xcoord),
-                  ycoord_all = ifelse(gx == -89, -1*ycoord, ycoord), 
-                  angle_all = ifelse(angle < 0 , -1* angle, angle),
-                  wing = ifelse(angle < 0 , "R", "L"),
-                  styp2 = stype)
+## keep only games that ended in regular time
+## sqldf defaults to MySQL so I need to tell sqldf to use SQLite to avoid headachess
+tmp = sqldf("SELECT gameid, max(period) as period FROM shots GROUP BY gameid",drv="SQLite")
+tmp = subset(tmp, period == 3)
+shots = subset(shots, gameid %in% tmp$gameid)
+rm(tmp)
+
+## standardize the shot type (if exists) into a factor for modeling
 shots$styp2 = as.character(shots$styp2)
 shots$styp2[is.na(shots$stype)] = 'Other'
 shots$styp2[shots$stype == 'Wrap-Around'] = 'Other'
@@ -46,7 +42,7 @@ shots$styp2 = factor(shots$styp2,
                         levels = c("Other", "Backhand", "Slap Shot",
                                    "Snap Shot", "Tip-In", "Wrist Shot"))
 
-## remove sots with distance greater than 90
+## remove shots with distance greater than 90
 shots = subset(shots, gdist < 90)
 
 
