@@ -12,6 +12,7 @@ library(plyr)
 require(jpeg)
 library(ggplot2)
 library(sqldf)
+library(ROCR)
 
 
 ## connect to MySQL
@@ -43,3 +44,15 @@ g = g + ylab("Expected Goals") + xlab("Actual Goals Scored")
 ggsave(file="figs/model-fit.png", width=4, height=4)
 
 
+## r squared -- about .88 r squared
+cor(model_accuracy$exp_goals, model_accuracy$goals, use="pairwise.complete.obs")^2
+
+
+## another approach - AUC on another year of data
+season1213 = subset(shots, seasonid == '20122013')
+pred = prediction(season1213$sprob, season1213$goalind)
+perf = performance(pred, measure = "tpr", x.measure = "fpr") 
+auc.tmp <- performance(pred,"auc");
+auc <- as.numeric(auc.tmp@y.values)
+auc
+## at the individual shot level, the auc is about .71, not great
